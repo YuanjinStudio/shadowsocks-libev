@@ -22,27 +22,6 @@
 #ifndef _COMMON_H
 #define _COMMON_H
 
-// only enable TCP_FASTOPEN on linux
-#if defined(__linux__)
-
-/*  conditional define for TCP_FASTOPEN */
-#ifndef TCP_FASTOPEN
-#define TCP_FASTOPEN   23
-#endif
-
-/*  conditional define for MSG_FASTOPEN */
-#ifndef MSG_FASTOPEN
-#define MSG_FASTOPEN   0x20000000
-#endif
-
-#elif !defined(__APPLE__)
-
-#ifdef TCP_FASTOPEN
-#undef TCP_FASTOPEN
-#endif
-
-#endif
-
 #define DEFAULT_CONF_PATH "/etc/shadowsocks-libev/config.json"
 
 #ifndef SOL_TCP
@@ -53,6 +32,11 @@
 #define MODULE_LOCAL
 #endif
 
+#include <libcork/ds.h>
+
+#include "encrypt.h"
+#include "obfs.h"
+
 int init_udprelay(const char *server_host, const char *server_port,
 #ifdef MODULE_LOCAL
                   const struct sockaddr *remote_addr, const int remote_addr_len,
@@ -60,13 +44,70 @@ int init_udprelay(const char *server_host, const char *server_port,
                   const ss_addr_t tunnel_addr,
 #endif
 #endif
-                  int mtu, int method, int auth, int timeout, const char *iface);
+                  int mtu, int timeout, const char *iface,
+                  cipher_env_t* cipher_env, const char *protocol, const char *protocol_param);
 
 void free_udprelay(void);
+
+typedef struct server_def {
+    char *host;
+    int port;
+    int udp_port;
+    struct sockaddr_storage *addr; // resolved address
+    struct sockaddr_storage *addr_udp; // resolved address
+    int addr_len;
+    int addr_udp_len;
+
+    char *psw; // raw password
+    cipher_env_t cipher;
+
+    struct cork_dllist connections;
+
+    // SSR
+    char *protocol_name; // for logging use only?
+    char *obfs_name; // for logging use only?
+
+    char *protocol_param;//协议插件
+    char *obfs_param;
+
+    obfs_class *protocol_plugin;
+    obfs_class *obfs_plugin;
+
+    void *protocol_global;
+    void *obfs_global;
+
+    int enable;
+    char *id;
+    char *group;
+    int udp_over_tcp;
+} server_def_t;
 
 #ifdef ANDROID
 int protect_socket(int fd);
 int send_traffic_stat(uint64_t tx, uint64_t rx);
 #endif
+
+#define STAGE_ERROR     -1  /* Error detected                   */
+#define STAGE_INIT       0  /* Initial stage                    */
+#define STAGE_HANDSHAKE  1  /* Handshake with client            */
+#define STAGE_PARSE      2  /* Parse the header                 */
+#define STAGE_RESOLVE    4  /* Resolve the hostname             */
+#define STAGE_STREAM     5  /* Stream between client and server */
+/* Vals for long options */
+enum {
+    GETOPT_VAL_HELP = 257,
+    GETOPT_VAL_REUSE_PORT,
+    GETOPT_VAL_FAST_OPEN,
+    GETOPT_VAL_NODELAY,
+    GETOPT_VAL_ACL,
+    GETOPT_VAL_MTU,
+    GETOPT_VAL_MPTCP,
+    GETOPT_VAL_PLUGIN,
+    GETOPT_VAL_PLUGIN_OPTS,
+    GETOPT_VAL_PASSWORD,
+    GETOPT_VAL_KEY,
+    GETOPT_VAL_MANAGER_ADDRESS,
+    GETOPT_VAL_EXECUTABLE
+};
 
 #endif // _COMMON_H

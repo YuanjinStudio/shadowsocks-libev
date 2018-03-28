@@ -36,6 +36,7 @@ typedef struct {
     char *protocol;
     char *obfs;
     char *obfs_param;
+    char *protocol_param;
 
     /*  Optional, set NULL if not valid   */
     char *acl;            // file path to acl
@@ -47,6 +48,8 @@ typedef struct {
     int mtu;              // MTU of interface
     int mptcp;            // enable multipath TCP
     int verbose;          // verbose mode
+    
+    char *SSStatusFile;    // 文件目录
 } profile_t;
 
 /* An example profile
@@ -87,6 +90,10 @@ extern "C" {
      */
     int start_ss_local_server(profile_t profile, shadowsocks_cb cb, void *data);
 
+    int Restart_ss_local_server(profile_t profile);
+    int StautsSSrecever();
+    int sssock_port (int fd);
+    void writeFile(int str) ;
 #ifdef __cplusplus
 }
 #endif

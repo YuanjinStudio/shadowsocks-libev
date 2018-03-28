@@ -1,7 +1,7 @@
 /*
  * netutils.h - Network utilities
  *
- * Copyright (C) 2013 - 2016, Max Lv <max.c.lv@gmail.com>
+ * Copyright (C) 2013 - 2017, Max Lv <max.c.lv@gmail.com>
  *
  * This file is part of the shadowsocks-libev.
  *
@@ -23,9 +23,45 @@
 #ifndef _NETUTILS_H
 #define _NETUTILS_H
 
-/* Define the flag MPTCP_ENABLED if not defined*/
+#include <sys/socket.h>
+
+#if defined(__linux__)
+#include <netdb.h>
+#else
+#include <netinet/tcp.h>
+#endif
+
+// only enable TCP_FASTOPEN on linux
+#if defined(__linux__)
+#include <linux/tcp.h>
+/*  conditional define for TCP_FASTOPEN */
+#ifndef TCP_FASTOPEN
+#define TCP_FASTOPEN   23
+#endif
+/*  conditional define for MSG_FASTOPEN */
+#ifndef MSG_FASTOPEN
+#define MSG_FASTOPEN   0x20000000
+#endif
+#elif !defined(__APPLE__)
+#ifdef TCP_FASTOPEN
+#undef TCP_FASTOPEN
+#endif
+#endif
+
+/* MPTCP_ENABLED setsockopt values for kernel 4 & 3, best behaviour to be independant of kernel version is to test from newest to the latest values */
 #ifndef MPTCP_ENABLED
+#ifdef TCP_CC_INFO
+#define MPTCP_ENABLED 42
+#else
 #define MPTCP_ENABLED 26
+#endif
+static const char mptcp_enabled_values[] = { 42, 26, 0 };
+#else
+static const char mptcp_enabled_values[] = { MPTCP_ENABLED, 0 };
+#endif
+
+#ifndef UPDATE_INTERVAL
+#define UPDATE_INTERVAL 5
 #endif
 
 /** byte size of ip4 address */
@@ -34,7 +70,9 @@
 #define INET6_SIZE 16
 
 size_t get_sockaddr_len(struct sockaddr *addr);
-ssize_t get_sockaddr(char *host, char *port, struct sockaddr_storage *storage, int block);
+ssize_t get_sockaddr(char *host, char *port,
+                     struct sockaddr_storage *storage, int block,
+                     int ipv6first);
 int set_reuseport(int socket);
 
 #ifdef SET_INTERFACE
@@ -63,5 +101,7 @@ int sockaddr_cmp(struct sockaddr_storage *addr1,
  */
 int sockaddr_cmp_addr(struct sockaddr_storage *addr1,
                       struct sockaddr_storage *addr2, socklen_t len);
+
+int validate_hostname(const char *hostname, const int hostname_len);
 
 #endif
